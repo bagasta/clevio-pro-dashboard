@@ -15,11 +15,17 @@ function WhatsappManager(io, prisma) {
 
     sessions[sessionName] = { client, webhook: null }
 
-    await prisma.session.upsert({
-      where: { sessionName },
-      update: { status: 'initializing' },
-      create: { sessionName, status: 'initializing', userId: 1 }
-    })
+    const existing = await prisma.session.findFirst({ where: { sessionName } })
+    if (existing) {
+      await prisma.session.update({
+        where: { id: existing.id },
+        data: { status: 'initializing' }
+      })
+    } else {
+      await prisma.session.create({
+        data: { sessionName, status: 'initializing', userId: 1 }
+      })
+    }
 
     client.on('qr', (qr) => {
       io.emit('qr', { session: sessionName, qr })
@@ -28,10 +34,13 @@ function WhatsappManager(io, prisma) {
 
     client.on('ready', async () => {
       io.emit('ready', { session: sessionName })
-      await prisma.session.update({
-        where: { sessionName },
-        data: { status: 'ready' }
-      })
+      const existing = await prisma.session.findFirst({ where: { sessionName } })
+      if (existing) {
+        await prisma.session.update({
+          where: { id: existing.id },
+          data: { status: 'ready' }
+        })
+      }
     })
 
     client.on('authenticated', () => {
@@ -41,10 +50,13 @@ function WhatsappManager(io, prisma) {
     client.on('disconnected', async (reason) => {
       io.emit('disconnected', { session: sessionName, reason })
       delete sessions[sessionName]
-      await prisma.session.update({
-        where: { sessionName },
-        data: { status: 'disconnected' }
-      })
+      const existing = await prisma.session.findFirst({ where: { sessionName } })
+      if (existing) {
+        await prisma.session.update({
+          where: { id: existing.id },
+          data: { status: 'disconnected' }
+        })
+      }
     })
 
     client.on('message', async (msg) => {
@@ -95,10 +107,13 @@ function WhatsappManager(io, prisma) {
   const setWebhook = async (sessionName, url) => {
     if (sessions[sessionName]) {
       sessions[sessionName].webhook = url
-      await prisma.session.update({
-        where: { sessionName },
-        data: { webhook: url }
-      })
+      const existing = await prisma.session.findFirst({ where: { sessionName } })
+      if (existing) {
+        await prisma.session.update({
+          where: { id: existing.id },
+          data: { webhook: url }
+        })
+      }
     }
   }
 
