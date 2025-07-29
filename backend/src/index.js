@@ -14,6 +14,18 @@ const io = new Server(server, { cors: { origin: '*' } });
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
+async function ensureDefaultUser() {
+  const count = await prisma.user.count()
+  if (count === 0) {
+    const hashed = await bcrypt.hash('default', 10)
+    await prisma.user.create({
+      data: { name: 'Default', email: 'default@example.com', password: hashed }
+    })
+  }
+}
+
+ensureDefaultUser()
+
 const WhatsappManager = require('./whatsapp');
 const whatsapp = WhatsappManager(io, prisma);
 

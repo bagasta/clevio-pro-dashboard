@@ -9,6 +9,15 @@ function WhatsappManager(io, prisma) {
       return sessions[sessionName].client
     }
 
+    // use first available user for now
+    let user = await prisma.user.findFirst()
+    if (!user) {
+      const hashed = await require('bcryptjs').hash('default', 10)
+      user = await prisma.user.create({
+        data: { name: 'Default', email: 'default@example.com', password: hashed }
+      })
+    }
+
     const client = new Client({
       authStrategy: new LocalAuth({ clientId: sessionName })
     })
@@ -23,7 +32,7 @@ function WhatsappManager(io, prisma) {
       })
     } else {
       await prisma.session.create({
-        data: { sessionName, status: 'initializing', userId: 1 }
+        data: { sessionName, status: 'initializing', userId: user.id }
       })
     }
 
