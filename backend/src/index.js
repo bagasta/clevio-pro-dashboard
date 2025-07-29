@@ -1,13 +1,20 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
+
+const WhatsappManager = require('./whatsapp');
+const whatsapp = WhatsappManager(io);
 
 app.use(cors());
 app.use(express.json());
@@ -62,6 +69,31 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.post('/api/sessions/:name', async (req, res) => {
+  try {
+    whatsapp.createSession(req.params.name);
+    res.json({ status: 'initializing' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create session' });
+  }
+});
+
+app.post('/api/sessions/:name/send', async (req, res) => {
+  const { to, message } = req.body;
+  const client = whatsapp.getSession(req.params.name);
+  if (!client) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  try {
+    await client.sendMessage(to, message);
+    res.json({ status: 'sent' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
