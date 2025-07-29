@@ -13,6 +13,7 @@ import {
   cilPuzzle,
   cilSpeedometer,
   cilStar,
+  cilSpeech,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem, CNavTitle } from '@coreui/react'
 
@@ -408,6 +409,12 @@ const _nav = [
       color: 'info',
       text: 'NEW',
     },
+  },
+  {
+    component: CNavItem,
+    name: 'WhatsApp',
+    to: '/whatsapp',
+    icon: <CIcon icon={cilSpeech} customClassName="nav-icon" />,
   },
   {
     component: CNavTitle,
