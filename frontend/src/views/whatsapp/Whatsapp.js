@@ -5,6 +5,9 @@ import {
   CCardBody,
   CFormInput,
   CButton,
+  CRow,
+  CCol,
+  CWidgetStatsF,
 } from '@coreui/react'
 import axios from 'axios'
 import { io } from 'socket.io-client'
@@ -31,6 +34,23 @@ const Whatsapp = () => {
   }
 
   useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const res = await axios.get('http://localhost:3001/api/sessions')
+        const data = {}
+        res.data.forEach((s) => {
+          data[s.sessionName] = {
+            status: s.status,
+            webhook: s.webhook,
+            qrDataUrl: '',
+          }
+        })
+        setSessions(data)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
     const handleQr = async ({ session, qr }) => {
       const url = await QRCode.toDataURL(qr)
       setSessions((prev) => ({
@@ -46,6 +66,7 @@ const Whatsapp = () => {
       }))
     }
 
+    fetchSessions()
     socket.on('qr', handleQr)
     socket.on('ready', handleReady)
 
@@ -85,34 +106,40 @@ const Whatsapp = () => {
           </div>
         </CCardBody>
       </CCard>
-      {Object.entries(sessions).map(([name, data]) => (
-        <CCard key={name} className="mb-3">
-          <CCardHeader>{name}</CCardHeader>
-          <CCardBody className="text-center">
-            {data.qrDataUrl ? (
-              <img src={data.qrDataUrl} alt="QR Code" />
-            ) : (
-              <span>{data.status}</span>
-            )}
-            {data.status === 'ready' && (
-              <div className="mt-3 d-flex">
-                <CFormInput
-                  placeholder="Webhook URL"
-                  value={data.webhookInput || ''}
-                  onChange={(e) =>
-                    setSessions((prev) => ({
-                      ...prev,
-                      [name]: { ...prev[name], webhookInput: e.target.value },
-                    }))
-                  }
-                  className="me-2"
-                />
-                <CButton onClick={() => saveWebhook(name)}>Save</CButton>
-              </div>
-            )}
-          </CCardBody>
-        </CCard>
-      ))}
+      <CRow className="g-4">
+        {Object.entries(sessions).map(([name, data]) => (
+          <CCol xs={12} md={6} lg={4} key={name}>
+            <CCard color="light" className="h-100 shadow-sm">
+              <CCardHeader className="fw-bold text-primary text-center">
+                {name}
+              </CCardHeader>
+              <CCardBody className="text-center">
+                {data.qrDataUrl ? (
+                  <img src={data.qrDataUrl} alt="QR Code" />
+                ) : (
+                  <span className="text-medium-emphasis">{data.status}</span>
+                )}
+                {data.status === 'ready' && (
+                  <div className="mt-3 d-flex">
+                    <CFormInput
+                      placeholder="Webhook URL"
+                      value={data.webhookInput || ''}
+                      onChange={(e) =>
+                        setSessions((prev) => ({
+                          ...prev,
+                          [name]: { ...prev[name], webhookInput: e.target.value },
+                        }))
+                      }
+                      className="me-2"
+                    />
+                    <CButton onClick={() => saveWebhook(name)}>Save</CButton>
+                  </div>
+                )}
+              </CCardBody>
+            </CCard>
+          </CCol>
+        ))}
+      </CRow>
     </div>
   )
 }

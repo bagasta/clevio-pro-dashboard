@@ -21,8 +21,9 @@ model User {
 model Session {
   id          Int      @id @default(autoincrement())
   userId      Int
-  sessionName String
+  sessionName String   @unique
   status      String
+  webhook     String?
   user        User     @relation(fields: [userId], references: [id])
 }
 

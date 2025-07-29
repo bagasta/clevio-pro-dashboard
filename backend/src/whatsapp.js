@@ -1,37 +1,51 @@
-const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js')
+const qrcode = require('qrcode-terminal')
 
-function WhatsappManager(io) {
-  const sessions = {};
+function WhatsappManager(io, prisma) {
+  const sessions = {}
 
-  const createSession = (sessionName) => {
+  const createSession = async (sessionName) => {
     if (sessions[sessionName]) {
-      return sessions[sessionName].client;
+      return sessions[sessionName].client
     }
 
     const client = new Client({
       authStrategy: new LocalAuth({ clientId: sessionName })
-    });
+    })
 
-    sessions[sessionName] = { client, webhook: null };
+    sessions[sessionName] = { client, webhook: null }
+
+    await prisma.session.upsert({
+      where: { sessionName },
+      update: { status: 'initializing' },
+      create: { sessionName, status: 'initializing', userId: 1 }
+    })
 
     client.on('qr', (qr) => {
-      io.emit('qr', { session: sessionName, qr });
-      qrcode.generate(qr, { small: true });
-    });
+      io.emit('qr', { session: sessionName, qr })
+      qrcode.generate(qr, { small: true })
+    })
 
-    client.on('ready', () => {
-      io.emit('ready', { session: sessionName });
-    });
+    client.on('ready', async () => {
+      io.emit('ready', { session: sessionName })
+      await prisma.session.update({
+        where: { sessionName },
+        data: { status: 'ready' }
+      })
+    })
 
     client.on('authenticated', () => {
-      io.emit('authenticated', { session: sessionName });
-    });
+      io.emit('authenticated', { session: sessionName })
+    })
 
-    client.on('disconnected', (reason) => {
-      io.emit('disconnected', { session: sessionName, reason });
-      delete sessions[sessionName];
-    });
+    client.on('disconnected', async (reason) => {
+      io.emit('disconnected', { session: sessionName, reason })
+      delete sessions[sessionName]
+      await prisma.session.update({
+        where: { sessionName },
+        data: { status: 'disconnected' }
+      })
+    })
 
     client.on('message', async (msg) => {
       io.emit('message', { session: sessionName, from: msg.from, body: msg.body });
@@ -78,11 +92,15 @@ function WhatsappManager(io) {
 
   const getSession = (sessionName) => sessions[sessionName] && sessions[sessionName].client;
 
-  const setWebhook = (sessionName, url) => {
+  const setWebhook = async (sessionName, url) => {
     if (sessions[sessionName]) {
-      sessions[sessionName].webhook = url;
+      sessions[sessionName].webhook = url
+      await prisma.session.update({
+        where: { sessionName },
+        data: { webhook: url }
+      })
     }
-  };
+  }
 
   return { createSession, getSession, setWebhook };
 }

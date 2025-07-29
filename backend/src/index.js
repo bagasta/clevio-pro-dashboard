@@ -15,7 +15,7 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
 const WhatsappManager = require('./whatsapp');
-const whatsapp = WhatsappManager(io);
+const whatsapp = WhatsappManager(io, prisma);
 
 app.use(cors());
 app.use(express.json());
@@ -70,22 +70,32 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+app.get('/api/sessions', async (req, res) => {
+  try {
+    const sessions = await prisma.session.findMany()
+    res.json(sessions)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to fetch sessions' })
+  }
+})
+
 app.post('/api/sessions/:name', async (req, res) => {
   try {
-    whatsapp.createSession(req.params.name);
-    res.json({ status: 'initializing' });
+    await whatsapp.createSession(req.params.name)
+    res.json({ status: 'initializing' })
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create session' });
   }
 });
 
-app.post('/api/sessions/:name/webhook', (req, res) => {
+app.post('/api/sessions/:name/webhook', async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'Missing url' });
   try {
-    whatsapp.setWebhook(req.params.name, url);
-    res.json({ status: 'ok' });
+    await whatsapp.setWebhook(req.params.name, url)
+    res.json({ status: 'ok' })
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to set webhook' });
