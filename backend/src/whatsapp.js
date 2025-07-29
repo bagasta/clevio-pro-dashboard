@@ -5,7 +5,7 @@ function WhatsappManager(io, prisma) {
   const sessions = {}
 
   const createSession = async (sessionName) => {
-    if (sessions[sessionName]) {
+    if (sessions[sessionName] && sessions[sessionName].client) {
       return sessions[sessionName].client
     }
 
@@ -22,9 +22,12 @@ function WhatsappManager(io, prisma) {
       authStrategy: new LocalAuth({ clientId: sessionName })
     })
 
-    sessions[sessionName] = { client, webhook: null }
-
+    const mem = sessions[sessionName] || {}
     const existing = await prisma.session.findFirst({ where: { sessionName } })
+    sessions[sessionName] = {
+      client,
+      webhook: mem.webhook || (existing && existing.webhook) || null
+    }
     if (existing) {
       await prisma.session.update({
         where: { id: existing.id },
@@ -72,7 +75,7 @@ function WhatsappManager(io, prisma) {
       io.emit('message', { session: sessionName, from: msg.from, body: msg.body });
 
       const session = sessions[sessionName];
-      if (session.webhook) {
+      if (session && session.webhook) {
         const payload = { from: msg.from, body: msg.body, type: msg.type };
         if (msg.hasMedia) {
           const media = await msg.downloadMedia();
@@ -114,15 +117,18 @@ function WhatsappManager(io, prisma) {
   const getSession = (sessionName) => sessions[sessionName] && sessions[sessionName].client;
 
   const setWebhook = async (sessionName, url) => {
-    if (sessions[sessionName]) {
+    const existing = await prisma.session.findFirst({ where: { sessionName } })
+    if (existing) {
+      await prisma.session.update({
+        where: { id: existing.id },
+        data: { webhook: url }
+      })
+    }
+
+    if (!sessions[sessionName]) {
+      sessions[sessionName] = { client: null, webhook: url }
+    } else {
       sessions[sessionName].webhook = url
-      const existing = await prisma.session.findFirst({ where: { sessionName } })
-      if (existing) {
-        await prisma.session.update({
-          where: { id: existing.id },
-          data: { webhook: url }
-        })
-      }
     }
   }
 
