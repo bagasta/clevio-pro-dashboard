@@ -131,3 +131,18 @@ Migrasi awal database:
 ```
 npx prisma migrate dev --name init
 ```
+## Development Setup
+
+Setelah repository diklon, jalankan `npm install` di masing-masing folder untuk mengunduh seluruh dependensi (termasuk `socket.io-client` yang dipakai halaman WhatsApp):
+
+```bash
+cd frontend && npm install
+cd ../backend && npm install
+```
+
+Kemudian jalankan server backend dan frontend pada terminal terpisah:
+
+```bash
+cd backend && npm start
+cd ../frontend && npm start
+```
