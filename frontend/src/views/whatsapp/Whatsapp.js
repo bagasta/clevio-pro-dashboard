@@ -16,6 +16,20 @@ const Whatsapp = () => {
   const [sessionName, setSessionName] = useState('')
   const [sessions, setSessions] = useState({})
 
+  const saveWebhook = async (name) => {
+    const url = sessions[name].webhookInput
+    if (!url) return
+    try {
+      await axios.post(`http://localhost:3001/api/sessions/${name}/webhook`, { url })
+      setSessions((prev) => ({
+        ...prev,
+        [name]: { ...prev[name], webhook: url },
+      }))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   useEffect(() => {
     const handleQr = async ({ session, qr }) => {
       const url = await QRCode.toDataURL(qr)
@@ -79,6 +93,22 @@ const Whatsapp = () => {
               <img src={data.qrDataUrl} alt="QR Code" />
             ) : (
               <span>{data.status}</span>
+            )}
+            {data.status === 'ready' && (
+              <div className="mt-3 d-flex">
+                <CFormInput
+                  placeholder="Webhook URL"
+                  value={data.webhookInput || ''}
+                  onChange={(e) =>
+                    setSessions((prev) => ({
+                      ...prev,
+                      [name]: { ...prev[name], webhookInput: e.target.value },
+                    }))
+                  }
+                  className="me-2"
+                />
+                <CButton onClick={() => saveWebhook(name)}>Save</CButton>
+              </div>
             )}
           </CCardBody>
         </CCard>

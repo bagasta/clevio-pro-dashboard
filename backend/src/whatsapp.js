@@ -1,4 +1,4 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
 function WhatsappManager(io) {
@@ -6,14 +6,14 @@ function WhatsappManager(io) {
 
   const createSession = (sessionName) => {
     if (sessions[sessionName]) {
-      return sessions[sessionName];
+      return sessions[sessionName].client;
     }
 
     const client = new Client({
       authStrategy: new LocalAuth({ clientId: sessionName })
     });
 
-    sessions[sessionName] = client;
+    sessions[sessionName] = { client, webhook: null };
 
     client.on('qr', (qr) => {
       io.emit('qr', { session: sessionName, qr });
@@ -33,8 +33,42 @@ function WhatsappManager(io) {
       delete sessions[sessionName];
     });
 
-    client.on('message', (msg) => {
+    client.on('message', async (msg) => {
       io.emit('message', { session: sessionName, from: msg.from, body: msg.body });
+
+      const session = sessions[sessionName];
+      if (session.webhook) {
+        const payload = { from: msg.from, body: msg.body, type: msg.type };
+        if (msg.hasMedia) {
+          const media = await msg.downloadMedia();
+          if (media) {
+            payload.media = media.data;
+            payload.mimetype = media.mimetype;
+            payload.filename = media.filename;
+          }
+        }
+        try {
+          const response = await fetch(session.webhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data) {
+              const to = data.to || msg.from;
+              if (data.type === 'text' || !data.type) {
+                if (data.message) await client.sendMessage(to, data.message);
+              } else if (['image', 'video', 'audio', 'document'].includes(data.type)) {
+                const media = new MessageMedia(data.mimetype, data.media, data.filename);
+                await client.sendMessage(to, media, { caption: data.caption });
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Webhook error:', err);
+        }
+      }
     });
 
     client.initialize();
@@ -42,9 +76,15 @@ function WhatsappManager(io) {
     return client;
   };
 
-  const getSession = (sessionName) => sessions[sessionName];
+  const getSession = (sessionName) => sessions[sessionName] && sessions[sessionName].client;
 
-  return { createSession, getSession };
+  const setWebhook = (sessionName, url) => {
+    if (sessions[sessionName]) {
+      sessions[sessionName].webhook = url;
+    }
+  };
+
+  return { createSession, getSession, setWebhook };
 }
 
 module.exports = WhatsappManager;

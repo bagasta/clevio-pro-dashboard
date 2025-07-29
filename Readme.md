@@ -146,3 +146,14 @@ Kemudian jalankan server backend dan frontend pada terminal terpisah:
 cd backend && npm start
 cd ../frontend && npm start
 ```
+
+### WhatsApp API Endpoints
+
+- `POST /api/sessions/:name` – create a new WhatsApp session
+- `POST /api/sessions/:name/webhook` – register a webhook URL to receive incoming messages
+- `POST /api/sessions/:name/send` – send a message. Body accepts:
+  - `to` – destination number
+  - `type` – `text`, `image`, `video`, `audio`, or `document`
+  - `message` – text message when `type` is `text`
+  - `media`/`mimetype`/`filename` – base64 data for media messages
+  - `caption` – optional caption for media

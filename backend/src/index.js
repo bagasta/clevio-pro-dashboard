@@ -4,6 +4,7 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
+const { MessageMedia } = require('whatsapp-web.js');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -79,15 +80,35 @@ app.post('/api/sessions/:name', async (req, res) => {
   }
 });
 
+app.post('/api/sessions/:name/webhook', (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'Missing url' });
+  try {
+    whatsapp.setWebhook(req.params.name, url);
+    res.json({ status: 'ok' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to set webhook' });
+  }
+});
+
 app.post('/api/sessions/:name/send', async (req, res) => {
-  const { to, message } = req.body;
+  const { to, type = 'text', message, media, mimetype, filename, caption } = req.body;
   const client = whatsapp.getSession(req.params.name);
   if (!client) {
     return res.status(404).json({ error: 'Session not found' });
   }
   try {
-    await client.sendMessage(to, message);
-    res.json({ status: 'sent' });
+    let result;
+    if (type === 'text' || !type) {
+      result = await client.sendMessage(to, message);
+    } else if (['image', 'video', 'audio', 'document'].includes(type)) {
+      const mediaMsg = new MessageMedia(mimetype, media, filename);
+      result = await client.sendMessage(to, mediaMsg, { caption });
+    } else {
+      return res.status(400).json({ error: 'Unsupported type' });
+    }
+    res.json({ status: 'sent', id: result.id._serialized });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to send message' });
