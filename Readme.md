@@ -138,7 +138,10 @@ Setelah repository diklon, jalankan `npm install` di masing-masing folder untuk 
 ```bash
 cd frontend && npm install
 cd ../backend && npm install
+npx prisma generate
 ```
+
+Jalankan `npx prisma generate` kembali setiap kali schema pada folder `backend/prisma` diubah atau setelah menarik pembaruan terbaru agar Prisma Client selaras dengan database.
 
 Kemudian jalankan server backend dan frontend pada terminal terpisah:
 
