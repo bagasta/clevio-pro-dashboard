@@ -150,6 +150,10 @@ cd backend && npm start
 cd ../frontend && npm start
 ```
 
+Server events and incoming messages will be printed to the console. Check the
+terminal running the backend for a detailed log of session status changes,
+QR codes, webhook calls, and sent messages.
+
 ### WhatsApp API Endpoints
 
 - `POST /api/sessions/:name` – create a new WhatsApp session

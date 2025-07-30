@@ -14,6 +14,9 @@ const io = new Server(server, { cors: { origin: '*' } });
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
+// log helper
+const log = (...args) => console.log('[server]', ...args)
+
 async function ensureDefaultUser() {
   const count = await prisma.user.count()
   if (count === 0) {
@@ -21,6 +24,7 @@ async function ensureDefaultUser() {
     await prisma.user.create({
       data: { name: 'Default', email: 'default@example.com', password: hashed }
     })
+    log('created default user')
   }
 }
 
@@ -53,6 +57,7 @@ app.post('/api/register', async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({ data: { name, email, password: hashed } });
     const token = generateToken(user);
+    log('registered user', email)
     res.json({ token });
   } catch (err) {
     console.error(err);
@@ -75,6 +80,7 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     const token = generateToken(user);
+    log('login success', email)
     res.json({ token });
   } catch (err) {
     console.error(err);
@@ -95,6 +101,7 @@ app.get('/api/sessions', async (req, res) => {
 app.post('/api/sessions/:name', async (req, res) => {
   try {
     await whatsapp.createSession(req.params.name)
+    log('create session', req.params.name)
     res.json({ status: 'initializing' })
   } catch (err) {
     console.error(err);
@@ -107,6 +114,7 @@ app.post('/api/sessions/:name/webhook', async (req, res) => {
   if (!url) return res.status(400).json({ error: 'Missing url' });
   try {
     await whatsapp.setWebhook(req.params.name, url)
+    log('set webhook', req.params.name, url)
     res.json({ status: 'ok' })
   } catch (err) {
     console.error(err);
@@ -130,6 +138,7 @@ app.post('/api/sessions/:name/send', async (req, res) => {
     } else {
       return res.status(400).json({ error: 'Unsupported type' });
     }
+    log('send message', req.params.name, to, type)
     res.json({ status: 'sent', id: result.id._serialized });
   } catch (err) {
     console.error(err);
@@ -138,5 +147,5 @@ app.post('/api/sessions/:name/send', async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  log(`Server running on port ${PORT}`)
 });

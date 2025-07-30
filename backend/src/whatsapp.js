@@ -3,6 +3,7 @@ const qrcode = require('qrcode-terminal')
 
 function WhatsappManager(io, prisma) {
   const sessions = {}
+  const log = (...args) => console.log('[whatsapp]', ...args)
 
   const createSession = async (sessionName) => {
     if (sessions[sessionName] && sessions[sessionName].client) {
@@ -21,6 +22,7 @@ function WhatsappManager(io, prisma) {
     const client = new Client({
       authStrategy: new LocalAuth({ clientId: sessionName })
     })
+    log('initializing session', sessionName)
 
     const mem = sessions[sessionName] || {}
     const existing = await prisma.session.findFirst({ where: { sessionName } })
@@ -40,11 +42,13 @@ function WhatsappManager(io, prisma) {
     }
 
     client.on('qr', (qr) => {
+      log('qr received', sessionName)
       io.emit('qr', { session: sessionName, qr })
       qrcode.generate(qr, { small: true })
     })
 
     client.on('ready', async () => {
+      log('ready', sessionName)
       io.emit('ready', { session: sessionName })
       const existing = await prisma.session.findFirst({ where: { sessionName } })
       if (existing) {
@@ -56,10 +60,12 @@ function WhatsappManager(io, prisma) {
     })
 
     client.on('authenticated', () => {
+      log('authenticated', sessionName)
       io.emit('authenticated', { session: sessionName })
     })
 
     client.on('disconnected', async (reason) => {
+      log('disconnected', sessionName, reason)
       io.emit('disconnected', { session: sessionName, reason })
       delete sessions[sessionName]
       const existing = await prisma.session.findFirst({ where: { sessionName } })
@@ -72,6 +78,7 @@ function WhatsappManager(io, prisma) {
     })
 
     client.on('message', async (msg) => {
+      log('message', sessionName, msg.from, msg.type)
       io.emit('message', { session: sessionName, from: msg.from, body: msg.body });
 
       const session = sessions[sessionName];
@@ -90,7 +97,8 @@ function WhatsappManager(io, prisma) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-          });
+          })
+          log('webhook call', session.webhook, response.status)
           if (response.ok) {
             const data = await response.json();
             if (data) {
@@ -110,6 +118,7 @@ function WhatsappManager(io, prisma) {
     });
 
     client.initialize();
+    log('client started', sessionName)
 
     return client;
   };
@@ -124,6 +133,8 @@ function WhatsappManager(io, prisma) {
         data: { webhook: url }
       })
     }
+
+    log('store webhook', sessionName, url)
 
     if (!sessions[sessionName]) {
       sessions[sessionName] = { client: null, webhook: url }
