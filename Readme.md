@@ -131,3 +131,42 @@ Migrasi awal database:
 ```
 npx prisma migrate dev --name init
 ```
+## Development Setup
+
+Setelah repository diklon, jalankan `npm install` di masing-masing folder untuk mengunduh seluruh dependensi (termasuk `socket.io-client` yang dipakai halaman WhatsApp):
+
+```bash
+cd frontend && npm install
+cd ../backend && npm install
+npx prisma generate
+```
+
+Jalankan `npx prisma generate` kembali setiap kali schema pada folder `backend/prisma` diubah atau setelah menarik pembaruan terbaru agar Prisma Client selaras dengan database.
+
+Kemudian jalankan server backend dan frontend pada terminal terpisah:
+
+```bash
+cd backend && npm start
+cd ../frontend && npm start
+```
+
+Server events and incoming messages will be printed to the console. Check the
+terminal running the backend for a detailed log of session status changes,
+QR codes, webhook calls, and sent messages.
+
+### WhatsApp API Endpoints
+
+- `GET /api/sessions` – list sessions with their current status
+- `POST /api/sessions` – create or update a session record
+- `POST /api/sessions/:name` – initialize a WhatsApp session
+- `PUT /api/sessions/:name/webhook` – register a webhook URL to receive incoming messages
+- `DELETE /api/sessions/:name` – remove a session
+- `GET /api/sessions/:name/qr` – fetch the latest QR code for authentication
+- `GET /api/sessions/:name/status` – check connection status
+- `GET /api/sessions/:name/logs` – retrieve recent message logs
+- `POST /api/sessions/:name/send` – send a message. Body accepts:
+  - `to` – destination number
+  - `type` – `text`, `image`, `video`, `audio`, or `document`
+  - `message` – text message when `type` is `text`
+  - `media`/`mimetype`/`filename` – base64 data for media messages
+  - `caption` – optional caption for media
